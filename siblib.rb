@@ -169,10 +169,13 @@ class KP
 
 
   # REMOVE
-  def remove(triple)
+  def remove(triple_list)
 
     # build the triple
-    triple_string = TRIPLE_TEMPLATE % [triple.subject.class, triple.subject.value, triple.predicate.value, triple.object.class, triple.object.value]
+    triple_string = ""
+    triple_list.each do |triple|
+      triple_string += TRIPLE_TEMPLATE % [triple.subject.class, triple.subject.value, triple.predicate.value, triple.object.class, triple.object.value]
+    end
 
     # build the SSAP JOIN REQUEST
     msg = REMOVE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, triple_string ]
