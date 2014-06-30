@@ -8,7 +8,13 @@ require "rubygems"
 require "nokogiri"
 load "ssap_templates.rb"
 
+
+##################################################
+#
 # The URI class
+#
+##################################################
+
 class URI
 
   # accessor
@@ -22,7 +28,12 @@ class URI
 end
 
 
+##################################################
+#
 # The Literal class
+#
+##################################################
+
 class Literal
 
   # accessor
@@ -36,7 +47,12 @@ class Literal
 end
 
 
+##################################################
+#
 # The Triple class
+#
+##################################################
+
 class Triple
 
   # accessor
@@ -59,7 +75,12 @@ class Triple
 end
 
 
+##################################################
+#
 # The KP class
+#
+##################################################
+
 class KP
 
   # accessors
@@ -87,7 +108,11 @@ class KP
     msg = JOIN_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id ]
 
     # opening a socket to the SIB
-    sib_socket = TCPSocket.new(@ip, @port)
+    begin
+      sib_socket = TCPSocket.new(@ip, @port)
+    rescue Errno::ECONNREFUSED
+      return false
+    end
 
     # sending the message
     sib_socket.write(msg)
@@ -125,7 +150,11 @@ class KP
     msg = LEAVE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id ]
 
     # opening a socket to the SIB
-    sib_socket = TCPSocket.new(@ip, @port)
+    begin
+      sib_socket = TCPSocket.new(@ip, @port)
+    rescue Errno::ECONNREFUSED
+      return false
+    end
 
     # sending the message
     sib_socket.write(msg)
@@ -169,7 +198,11 @@ class KP
     msg = INSERT_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, triple_string ]
 
     # opening a socket to the SIB
-    sib_socket = TCPSocket.new(@ip, @port)
+    begin
+      sib_socket = TCPSocket.new(@ip, @port)
+    rescue Errno::ECONNREFUSED
+      return false
+    end
 
     # sending the message
     sib_socket.write(msg)
@@ -213,7 +246,11 @@ class KP
     msg = REMOVE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, triple_string ]
   
     # opening a socket to the SIB
-    sib_socket = TCPSocket.new(@ip, @port)
+    begin
+      sib_socket = TCPSocket.new(@ip, @port)
+    rescue Errno::ECONNREFUSED
+      return false
+    end
 
     # sending the message
     sib_socket.write(msg)
@@ -253,7 +290,11 @@ class KP
     msg = QUERY_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, triple_string ]
   
     # opening a socket to the SIB
-    sib_socket = TCPSocket.new(@ip, @port)
+    begin
+      sib_socket = TCPSocket.new(@ip, @port)
+    rescue Errno::ECONNREFUSED
+      return false
+    end
 
     # sending the message
     sib_socket.write(msg)
