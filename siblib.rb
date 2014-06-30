@@ -1,9 +1,11 @@
 #!/usr/bin/ruby
 
 # requirements
+require "xml"
+require "uuid"
 require "socket"
 require "rubygems"
-require "uuid"
+require "nokogiri"
 load "ssap_templates.rb"
 
 # The URI class
@@ -102,7 +104,17 @@ class KP
 
     # increment transaction id
     @transaction_id += 1
-    
+
+    # parsing the message to get the return value
+    content = XML::Parser.string(rmsg).parse
+    pars = content.root.find('./parameter')
+    pars.each do |p|
+      if p.attributes.get_attribute("name").value == "status"
+        return p.content == "m3:Success" ? true : false
+        break
+      end 
+    end
+   
   end
   
 
@@ -130,6 +142,16 @@ class KP
 
     # increment transaction id
     @transaction_id += 1
+
+    # parsing the message to get the return value
+    content = XML::Parser.string(rmsg).parse
+    pars = content.root.find('./parameter')
+    pars.each do |p|
+      if p.attributes.get_attribute("name").value == "status"
+        return p.content == "m3:Success" ? true : false
+        break
+      end 
+    end
     
   end
 
@@ -164,6 +186,16 @@ class KP
 
     # increment transaction id
     @transaction_id += 1
+
+    # parsing the message to get the return value
+    content = XML::Parser.string(rmsg).parse
+    pars = content.root.find('./parameter')
+    pars.each do |p|
+      if p.attributes.get_attribute("name").value == "status"
+        return p.content == "m3:Success" ? true : false
+        break
+      end 
+    end
     
   end
 
@@ -198,6 +230,16 @@ class KP
 
     # increment transaction id
     @transaction_id += 1
+
+    # parsing the message to get the return value
+    content = XML::Parser.string(rmsg).parse
+    pars = content.root.find('./parameter')
+    pars.each do |p|
+      if p.attributes.get_attribute("name").value == "status"
+        return p.content == "m3:Success" ? true : false
+        break
+      end 
+    end
     
   end
 
@@ -228,6 +270,16 @@ class KP
 
     # increment transaction id
     @transaction_id += 1
+
+    # parsing the message to get the return value
+    content = XML::Parser.string(rmsg).parse
+    pars = content.root.find('./parameter')
+    pars.each do |p|
+      if p.attributes.get_attribute("name").value == "status"
+        return p.content == "m3:Success" ? true : false
+        break
+      end 
+    end
     
   end
 
