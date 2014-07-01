@@ -4,8 +4,6 @@
 require "xml"
 require "uuid"
 require "socket"
-require "rubygems"
-require "nokogiri"
 load "ssap_templates.rb"
 
 
@@ -418,9 +416,49 @@ class KP
       end 
     end
     
-    # TODO: parse the reply
+    # find query results
+    results = []
+    
+    # Get the triple list
+    content = XML::Parser.string(rmsg.strip).parse
+    pars = content.root.find('./parameter')
+    pars.each do |p|
+      if p.attributes.get_attribute("name").value == "results"
 
-    return return_value
+        # we're on the sparql node
+        p.each_element do |sparql|
+    
+          sparql.each_element do |hr|
+          
+            # head/results fields
+            hr.each_element do |field|
+                
+              # find the results
+              if field.name == "result"
+    
+                # We found a result
+                result = []
+                
+                field.each_element do |n|
+                  variable = []
+                  variable << n.attributes.first.value
+                  n.each_element do |v|
+                    variable << v.name
+                    variable << v.content
+                  end
+                  result << variable
+                  results << result
+                end
+
+              end
+            end        
+          end
+          break
+        end
+      end
+    end
+
+    return return_value, results
     
   end
 
