@@ -22,7 +22,11 @@ class URI
 
   # constructor
   def initialize(value)
-    @value = value
+    if value
+      @value = value
+    else
+      @value = "http://www.nokia.com/NRC/M3/sib#any"
+    end
   end
 
 end
