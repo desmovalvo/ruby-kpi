@@ -315,12 +315,61 @@ class KP
     # parsing the message to get the return value
     content = XML::Parser.string(rmsg).parse
     pars = content.root.find('./parameter')
+    return_value = nil
     pars.each do |p|
       if p.attributes.get_attribute("name").value == "status"
-        return p.content == "m3:Success" ? true : false
+        return_value = p.content == "m3:Success" ? true : false
         break
       end 
     end
+
+    # Get the triple list
+    triple_list = []
+    content = XML::Parser.string(rmsg).parse
+    pars = content.root.find('./parameter')
+    pars.each do |p|
+
+      if p.attributes.get_attribute("name").value == "results"
+
+        # new root
+        nroot = p
+        t = p.find('./triple_list').first.find('./triple')
+        t.each do |tr|
+
+          # get subject
+          s = tr.find('./subject').first
+          s_content = s.content.strip
+          s_type = s.attributes.get_attribute("type").value.strip
+          if s_type.downcase == "uri"
+            subject = URI.new(s_content)
+          else
+            subject = Literal.new(s_content)
+          end
+    
+          # get predicate
+          p = tr.find('./predicate').first
+          p_content = s.content.strip
+          predicate = URI.new(p_content)
+    
+          # get object
+          o = tr.find('./object').first
+          o_content = s.content.strip
+          o_type = s.attributes.get_attribute("type").value.strip
+          if o_type.downcase == "uri"
+            object = URI.new(o_content)
+          else
+            object = Literal.new(o_content)
+          end
+
+          # triple
+          t = Triple.new(subject, predicate, object)
+          triple_list << t
+    
+        end
+      end 
+    end
+    
+    return return_value, triple_list
     
   end
 
