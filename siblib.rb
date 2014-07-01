@@ -146,7 +146,7 @@ class KP
   # LEAVE
   def leave_sib()
 
-    # build the SSAP JOIN REQUEST
+    # build the SSAP LEAVE REQUEST
     msg = LEAVE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id ]
 
     # opening a socket to the SIB
@@ -194,7 +194,7 @@ class KP
       triple_string += TRIPLE_TEMPLATE % [triple.subject.class, triple.subject.value, triple.predicate.value, triple.object.class, triple.object.value]
     end
 
-    # build the SSAP JOIN REQUEST
+    # build the SSAP INSERT REQUEST
     msg = INSERT_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, triple_string ]
 
     # opening a socket to the SIB
@@ -242,7 +242,7 @@ class KP
       triple_string += TRIPLE_TEMPLATE % [triple.subject.class, triple.subject.value, triple.predicate.value, triple.object.class, triple.object.value]
     end
 
-    # build the SSAP JOIN REQUEST
+    # build the SSAP REMOVE REQUEST
     msg = REMOVE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, triple_string ]
   
     # opening a socket to the SIB
@@ -286,7 +286,7 @@ class KP
     # build the triple
     triple_string = TRIPLE_TEMPLATE % [triple.subject.class, triple.subject.value, triple.predicate.value, triple.object.class, triple.object.value]
 
-    # build the SSAP JOIN REQUEST
+    # build the SSAP QUERY REQUEST
     msg = QUERY_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, triple_string ]
   
     # opening a socket to the SIB
@@ -370,6 +370,53 @@ class KP
     end
     
     return return_value, triple_list
+    
+  end
+
+
+  # SPARQL QUERY
+  def sparql_query(q)
+
+    # build the SSAP SPARQL QUERY REQUEST
+    msg = SPARQL_QUERY_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, q ]
+  
+    # opening a socket to the SIB
+    begin
+      sib_socket = TCPSocket.new(@ip, @port)
+    rescue Errno::ECONNREFUSED
+      return false
+    end
+
+    # sending the message
+    sib_socket.write(msg)
+
+    # waiting for a reply
+    rmsg = sib_socket.recv(4096)
+
+    # closing the socket
+    sib_socket.close()
+
+    # storing last request and last reply
+    @last_request = msg
+    @last_reply = rmsg
+
+    # increment transaction id
+    @transaction_id += 1
+
+    # parsing the message to get the return value
+    content = XML::Parser.string(rmsg).parse
+    pars = content.root.find('./parameter')
+    return_value = nil
+    pars.each do |p|
+      if p.attributes.get_attribute("name").value == "status"
+        return_value = p.content == "m3:Success" ? true : false
+        break
+      end 
+    end
+    
+    # TODO: parse the reply
+
+    return return_value
     
   end
 
