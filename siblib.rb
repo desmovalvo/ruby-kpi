@@ -4,6 +4,7 @@
 require "xml"
 require "uuid"
 require "socket"
+load "TCPConnection.rb"
 load "ssap_templates.rb"
 
 
@@ -120,32 +121,17 @@ class KP
     msg = JOIN_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id ]
     @last_request = msg
 
-    # opening a socket to the SIB
-    begin
-      sib_socket = TCPSocket.new(@ip, @port)
-    rescue Errno::ECONNREFUSED
-      raise SIBError, 'Connection refused'
-    end
-
-    # sending the message
-    sib_socket.write(msg)
+    # connecting to the SIB
+    tcpc = TCPConnection.new(@ip, @port)
+    
+    # sending the request  message
+    tcpc.send_request(msg)
 
     # waiting for a reply
-    rmsg = ""
-    while true do
-      begin
-        r = sib_socket.recv(4096)
-        rmsg += r
-        if rmsg.include?("</SSAP_message>")
-          break
-        end
-      rescue
-        raise SIBError, 'Error while receiving a reply'
-      end
-    end
+    rmsg = tcpc.receive_reply()
 
     # closing the socket
-    sib_socket.close()
+    tcpc.close()
 
     # storing last reply
     @last_reply = rmsg
@@ -173,32 +159,17 @@ class KP
     msg = LEAVE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id ]
     @last_request = msg
 
-    # opening a socket to the SIB
-    begin
-      sib_socket = TCPSocket.new(@ip, @port)
-    rescue Errno::ECONNREFUSED
-      raise SIBError, 'Connection refused'
-    end
+    # connecting to the SIB
+    tcpc = TCPConnection.new(@ip, @port)
+    
+    # sendind the request
+    tcpc.send_request(msg)
 
-    # sending the message
-    sib_socket.write(msg)
-
-    # waiting for a reply
-    rmsg = ""
-    while true do
-      begin
-        r = sib_socket.recv(4096)
-        rmsg += r
-        if rmsg.include?("</SSAP_message>")
-          break
-        end       
-      rescue
-        raise SIBError, 'Error while receiving a reply'
-      end
-    end
+    # waiting a reply
+    rmsg = tcpc.receive_reply()
 
     # closing the socket
-    sib_socket.close()
+    tcpc.close()
 
     # storing last reply
     @last_reply = rmsg
