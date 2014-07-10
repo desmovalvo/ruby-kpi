@@ -9,6 +9,15 @@ load "ssap_templates.rb"
 
 ##################################################
 #
+# The Exceptions classes
+#
+##################################################
+
+class SIBError < StandardError
+end
+
+##################################################
+#
 # The URI class
 #
 ##################################################
@@ -107,27 +116,31 @@ class KP
   # join
   def join_sib()
 
-    # build the SSAP JOIN REQUEST
+    # build and storing the SSAP JOIN REQUEST
     msg = JOIN_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id ]
+    @last_request = msg
 
     # opening a socket to the SIB
     begin
       sib_socket = TCPSocket.new(@ip, @port)
     rescue Errno::ECONNREFUSED
-      return false
+      raise SIBError, 'Connection refused'
     end
 
     # sending the message
     sib_socket.write(msg)
 
     # waiting for a reply
-    rmsg = sib_socket.recv(4096)
+    begin
+      rmsg = sib_socket.recv(4096)
+    rescue
+      raise SIBError, 'Error while receiving a reply'
+    end
 
     # closing the socket
     sib_socket.close()
 
-    # storing last request and last reply
-    @last_request = msg
+    # storing last reply
     @last_reply = rmsg
 
     # increment transaction id
