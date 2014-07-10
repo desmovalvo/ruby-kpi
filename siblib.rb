@@ -395,6 +395,7 @@ class KP
   def sparql_query(q)
 
     # build the SSAP SPARQL QUERY REQUEST
+    q = q.gsub("<", "&lt;").gsub(">", "&gt;")
     msg = SPARQL_QUERY_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, q ]
   
     # opening a socket to the SIB
@@ -410,6 +411,8 @@ class KP
     rescue
       puts "ERROR"
     end
+    
+    print 'message sent'
 
     # waiting for a reply
     rmsg = ""
