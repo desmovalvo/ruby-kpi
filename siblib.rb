@@ -89,11 +89,12 @@ class KP
   attr_reader :last_request, :last_reply
   
   # constructor 
-  def initialize(ip, port, smart_space)
+  def initialize(ip, port, smart_space, debug = false)
 
     # instance variables
     @ip = ip
     @port = port
+    @debug = debug
     @ss = smart_space
     @transaction_id = 1
     @node_id = UUID.new().generate() 
