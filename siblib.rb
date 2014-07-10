@@ -207,32 +207,20 @@ class KP
     # build the SSAP INSERT REQUEST
     msg = INSERT_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, triple_string ]
 
-    # opening a socket to the SIB
-    begin
-      sib_socket = TCPSocket.new(@ip, @port)
-    rescue Errno::ECONNREFUSED
-      raise SIBError, "Connection refused"
-    end
+    # connecting to the SIB
+    tcpc = TCPConnection.new(@ip, @port)
+    
+    # sendind the request
+    tcpc.send_request(msg)
 
-    # sending the message
-    sib_socket.write(msg)
-
-    # waiting for a reply
-    rmsg = ''
-    while true do
-      begin
-        r = sib_socket.recv(4096)
-        rmsg += r
-        if rmsg.include?("</SSAP_message>")
-          break
-        end
-      rescue
-        raise SIBError, "Error while receiving a reply"
-      end
-    end
+    # waiting a reply
+    rmsg = tcpc.receive_reply()
 
     # closing the socket
-    sib_socket.close()
+    tcpc.close()
+
+    # storing last reply
+    @last_reply = rmsg
 
     # storing last request and last reply
     @last_request = msg
@@ -271,33 +259,18 @@ class KP
     # build and storing the SSAP REMOVE REQUEST
     msg = REMOVE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, triple_string ]
     @last_request = msg
-  
-    # opening a socket to the SIB
-    begin      
-      sib_socket = TCPSocket.new(@ip, @port)
-    rescue Errno::ECONNREFUSED
-      raise SIBError, "Connection refused"
-    end
 
-    # sending the message
-    sib_socket.write(msg)
+    # connecting to the SIB
+    tcpc = TCPConnection.new(@ip, @port)
+    
+    # sendind the request
+    tcpc.send_request(msg)
 
-    # waiting for a reply
-    rmsg = ""
-    while true do
-      begin
-        r = sib_socket.recv(4096)
-        rmsg += r
-        if r.include?("</SSAP_message>")
-          break
-        end
-      rescue
-        raise SIBError, "Error while receiving a reply"
-      end
-    end
+    # waiting a reply
+    rmsg = tcpc.receive_reply()
 
     # closing the socket
-    sib_socket.close()
+    tcpc.close()
 
     # storing last reply
     @last_reply = rmsg
@@ -323,34 +296,23 @@ class KP
     # build the triple
     triple_string = TRIPLE_TEMPLATE % [triple.subject.class, triple.subject.value, triple.predicate.value, triple.object.class, triple.object.value]
 
-    # build the SSAP QUERY REQUEST
+    # build and store the SSAP QUERY REQUEST
     msg = QUERY_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, triple_string ]
-  
-    # opening a socket to the SIB
-    begin
-      sib_socket = TCPSocket.new(@ip, @port)
-    rescue Errno::ECONNREFUSED
-      return false
-    end
+    @last_request = msg
 
-    # sending the message
-    sib_socket.write(msg)
+    # connecting to the SIB
+    tcpc = TCPConnection.new(@ip, @port)
+    
+    # sendind the request
+    tcpc.send_request(msg)
 
-    # waiting for a reply
-    rmsg = ""
-    while true do
-      r = sib_socket.recv(4096)
-      rmsg = rmsg + r
-      if rmsg.include?("</SSAP_message>")
-        break
-      end
-    end
+    # waiting a reply
+    rmsg = tcpc.receive_reply()
 
     # closing the socket
-    sib_socket.close()
+    tcpc.close()
 
-    # storing last request and last reply
-    @last_request = msg
+    # storing last reply
     @last_reply = rmsg
 
     # increment transaction id
@@ -421,45 +383,24 @@ class KP
   # SPARQL QUERY
   def sparql_query(q)
 
-    # build the SSAP SPARQL QUERY REQUEST
+    # build and store the SSAP SPARQL QUERY REQUEST
     q = q.gsub("<", "&lt;").gsub(">", "&gt;")
     msg = SPARQL_QUERY_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, q ]
+    @last_request = msg
   
-    # opening a socket to the SIB
-    begin
-      sib_socket = TCPSocket.new(@ip, @port)
-    rescue Errno::ECONNREFUSED
-      return false
-    end
-
-    # sending the message
-    begin
-      sib_socket.write(msg)
-    rescue
-      puts "ERROR"
-    end
+    # connecting to the SIB
+    tcpc = TCPConnection.new(@ip, @port)
     
-    print 'message sent'
+    # sendind the request
+    tcpc.send_request(msg)
 
-    # waiting for a reply
-    rmsg = ""
-    while true do
-      begin
-        r = sib_socket.recv(4096)
-        rmsg += r
-        if rmsg.include?("</SSAP_message>")
-          break
-        end
-      rescue
-        puts 'error'
-      end
-    end
+    # waiting a reply
+    rmsg = tcpc.receive_reply()
 
     # closing the socket
-    sib_socket.close()
+    tcpc.close()
 
-    # storing last request and last reply
-    @last_request = msg
+    # storing last reply
     @last_reply = rmsg
 
     # increment transaction id
