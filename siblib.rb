@@ -190,6 +190,10 @@ class KP
   # INSERT
   def insert(triple_list)
 
+    if triple_list.class.to_s == "Triple"
+      triple_list = [triple_list]
+    end
+
     # build the triple_string
     triple_string = ""
     triple_list.each do |triple|
