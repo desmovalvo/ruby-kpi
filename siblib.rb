@@ -193,7 +193,7 @@ class KP
     # build the triple_string
     triple_string = ""
     triple_list.each do |triple|
-      triple_string += TRIPLE_TEMPLATE % [triple.subject.class, triple.subject.value, triple.predicate.value, triple.object.class, triple.object.value]
+      triple_string += TRIPLE_TEMPLATE % [triple.subject.class.to_s.downcase, triple.subject.value, triple.predicate.value, triple.object.class.to_s.downcase, triple.object.value]
     end
 
     # build the SSAP INSERT REQUEST
@@ -302,7 +302,14 @@ class KP
     sib_socket.write(msg)
 
     # waiting for a reply
-    rmsg = sib_socket.recv(4096)
+    rmsg = ""
+    while true do
+      r = sib_socket.recv(4096)
+      rmsg = rmsg + r
+      if rmsg.include?("</SSAP_message>")
+        break
+      end
+    end
 
     # closing the socket
     sib_socket.close()
@@ -350,13 +357,13 @@ class KP
     
           # get predicate
           p = tr.find('./predicate').first
-          p_content = s.content.strip
+          p_content = p.content.strip
           predicate = URI.new(p_content)
     
           # get object
           o = tr.find('./object').first
-          o_content = s.content.strip
-          o_type = s.attributes.get_attribute("type").value.strip
+          o_content = o.content.strip
+          o_type = o.attributes.get_attribute("type").value.strip
           if o_type.downcase == "uri"
             object = URI.new(o_content)
           else
@@ -390,10 +397,21 @@ class KP
     end
 
     # sending the message
-    sib_socket.write(msg)
+    begin
+      sib_socket.write(msg)
+    rescue
+      puts "ERROR"
+    end
+    puts msg
 
     # waiting for a reply
-    rmsg = sib_socket.recv(4096)
+    begin
+      rmsg = sib_socket.recv(4096)
+    rescue
+      puts 'error'
+    end
+    puts rmsg
+    return
 
     # closing the socket
     sib_socket.close()
