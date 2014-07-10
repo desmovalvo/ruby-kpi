@@ -131,10 +131,17 @@ class KP
     sib_socket.write(msg)
 
     # waiting for a reply
-    begin
-      rmsg = sib_socket.recv(4096)
-    rescue
-      raise SIBError, 'Error while receiving a reply'
+    rmsg = ""
+    while true do
+      begin
+        r = sib_socket.recv(4096)
+        rmsg += r
+        if rmsg.include?("</SSAP_message>")
+          break
+        end
+      rescue
+        raise SIBError, 'Error while receiving a reply'
+      end
     end
 
     # closing the socket
@@ -162,27 +169,38 @@ class KP
   # LEAVE
   def leave_sib()
 
-    # build the SSAP LEAVE REQUEST
+    # build and storing the SSAP LEAVE REQUEST
     msg = LEAVE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id ]
+    @last_request = msg
 
     # opening a socket to the SIB
     begin
       sib_socket = TCPSocket.new(@ip, @port)
     rescue Errno::ECONNREFUSED
-      return false
+      raise SIBError, 'Connection refused'
     end
 
     # sending the message
     sib_socket.write(msg)
 
     # waiting for a reply
-    rmsg = sib_socket.recv(4096)
+    rmsg = ""
+    while true do
+      begin
+        r = sib_socket.recv(4096)
+        rmsg += r
+        if rmsg.include?("</SSAP_message>")
+          break
+        end       
+      rescue
+        raise SIBError, 'Error while receiving a reply'
+      end
+    end
 
     # closing the socket
     sib_socket.close()
 
-    # storing last request and last reply
-    @last_request = msg
+    # storing last reply
     @last_reply = rmsg
 
     # increment transaction id
@@ -204,6 +222,7 @@ class KP
   # INSERT
   def insert(triple_list)
 
+    # is triple_list an Array or a Triple?
     if triple_list.class.to_s == "Triple"
       triple_list = [triple_list]
     end
@@ -221,14 +240,25 @@ class KP
     begin
       sib_socket = TCPSocket.new(@ip, @port)
     rescue Errno::ECONNREFUSED
-      return false
+      raise SIBError, "Connection refused"
     end
 
     # sending the message
     sib_socket.write(msg)
 
     # waiting for a reply
-    rmsg = sib_socket.recv(4096)
+    rmsg = ''
+    while true do
+      begin
+        r = sib_socket.recv(4096)
+        rmsg += r
+        if rmsg.include?("</SSAP_message>")
+          break
+        end
+      rescue
+        raise SIBError, "Error while receiving a reply"
+      end
+    end
 
     # closing the socket
     sib_socket.close()
@@ -256,37 +286,49 @@ class KP
   # REMOVE
   def remove(triple_list)
 
+    # is triple_list an Array or a Triple?
     if triple_list.class.to_s == "Triple"
       triple_list = [triple_list]
     end
 
-    # build the triple
+    # build the triple string
     triple_string = ""
     triple_list.each do |triple|
       triple_string += TRIPLE_TEMPLATE % [triple.subject.class, triple.subject.value, triple.predicate.value, triple.object.class, triple.object.value]
     end
 
-    # build the SSAP REMOVE REQUEST
+    # build and storing the SSAP REMOVE REQUEST
     msg = REMOVE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, triple_string ]
+    @last_request = msg
   
     # opening a socket to the SIB
-    begin
+    begin      
       sib_socket = TCPSocket.new(@ip, @port)
     rescue Errno::ECONNREFUSED
-      return false
+      raise SIBError, "Connection refused"
     end
 
     # sending the message
     sib_socket.write(msg)
 
     # waiting for a reply
-    rmsg = sib_socket.recv(4096)
+    rmsg = ""
+    while true do
+      begin
+        r = sib_socket.recv(4096)
+        rmsg += r
+        if r.include?("</SSAP_message>")
+          break
+        end
+      rescue
+        raise SIBError, "Error while receiving a reply"
+      end
+    end
 
     # closing the socket
     sib_socket.close()
 
-    # storing last request and last reply
-    @last_request = msg
+    # storing last reply
     @last_reply = rmsg
 
     # increment transaction id
