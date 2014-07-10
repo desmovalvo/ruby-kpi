@@ -69,6 +69,27 @@ SPARQL_QUERY_REQUEST_TEMPLATE = %{<SSAP_message>
 <parameter name = "query">%s</parameter>
 </SSAP_message>}
 
+# RDF SUBSCRIBE TEMPLATE
+SUBSCRIBE_REQUEST_TEMPLATE = %{<SSAP_message>
+<node_id>%s</node_id>
+<space_id>%s</space_id>
+<transaction_type>SUBSCRIBE</transaction_type>
+<message_type>REQUEST</message_type>
+<transaction_id>%s</transaction_id>
+<parameter name = "type">RDF-M3</parameter>
+<parameter name = "query">
+<triple_list>%s</triple_list></parameter>
+</SSAP_message>}
+
+# UNSUBSCRIBE TEMPLATE
+UNSUBSCRIBE_REQUEST_TEMPLATE = %{<SSAP_message>
+<node_id>%s</node_id>
+<space_id>%s</space_id>
+<transaction_type>UNSUBSCRIBE</transaction_type>
+<message_type>REQUEST</message_type>
+<transaction_id>%s</transaction_id>
+<parameter name = "subscription_id">%s</parameter>
+</SSAP_message>}
 
 # OTHER TEMPLATES
 

@@ -110,6 +110,7 @@ class KP
     @node_id = UUID.new().generate() 
     @last_request = nil
     @last_reply = nil
+    @active_subscriptions = {}
 
   end
 
@@ -117,7 +118,7 @@ class KP
   # join
   def join_sib()
 
-    # build and storing the SSAP JOIN REQUEST
+    # building and storing the SSAP JOIN REQUEST
     msg = JOIN_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id ]
     @last_request = msg
 
@@ -155,7 +156,7 @@ class KP
   # LEAVE
   def leave_sib()
 
-    # build and storing the SSAP LEAVE REQUEST
+    # building and storing the SSAP LEAVE REQUEST
     msg = LEAVE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id ]
     @last_request = msg
 
@@ -256,7 +257,7 @@ class KP
       triple_string += TRIPLE_TEMPLATE % [triple.subject.class, triple.subject.value, triple.predicate.value, triple.object.class, triple.object.value]
     end
 
-    # build and storing the SSAP REMOVE REQUEST
+    # building and storing the SSAP REMOVE REQUEST
     msg = REMOVE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, triple_string ]
     @last_request = msg
 
@@ -461,6 +462,147 @@ class KP
 
     return return_value, results
     
+  end
+
+  # RDF Subscription
+  def subscribe(triple)
+
+    # build the triple
+    triple_string = TRIPLE_TEMPLATE % [triple.subject.class, triple.subject.value, triple.predicate.value, triple.object.class, triple.object.value]
+
+    # build and store the SSAP QUERY REQUEST
+    msg = SUBSCRIBE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, triple_string ]
+    @last_request = msg
+
+    # connecting to the SIB
+    tcpc = TCPConnection.new(@ip, @port)
+    
+    # sendind the request
+    tcpc.send_request(msg)
+
+    puts 'request sent'
+    
+    # waiting a reply
+    rmsg = tcpc.receive_reply()
+
+    # storing last reply
+    @last_reply = rmsg
+
+    # increment transaction id
+    @transaction_id += 1
+
+    # parsing the message to get the return value
+    content = XML::Parser.string(rmsg).parse
+    pars = content.root.find('./parameter')
+    return_value = nil
+    pars.each do |p|
+      if p.attributes.get_attribute("name").value == "status"
+        return_value = p.content == "m3:Success" ? true : false
+        break
+      end 
+    end
+
+    # get the subscription id
+    subscription_id = nil
+    pars.each do |p|
+      if p.attributes.get_attribute("name").value == "subscription_id"
+        subscription_id = p.content
+        break
+      end 
+    end
+    puts subscription_id
+
+    # store the subscription id and its socket
+    @active_subscriptions[subscription_id] = tcpc
+
+    # Get the initial results
+    triple_list = []
+    content = XML::Parser.string(rmsg).parse
+    pars = content.root.find('./parameter')
+    pars.each do |p|
+
+      if p.attributes.get_attribute("name").value == "results"
+
+        # new root
+        nroot = p
+        t = p.find('./triple_list').first.find('./triple')
+        t.each do |tr|
+
+          # get subject
+          s = tr.find('./subject').first
+          s_content = s.content.strip
+          s_type = s.attributes.get_attribute("type").value.strip
+          if s_type.downcase == "uri"
+            subject = URI.new(s_content)
+          else
+            subject = Literal.new(s_content)
+          end
+    
+          # get predicate
+          p = tr.find('./predicate').first
+          p_content = p.content.strip
+          predicate = URI.new(p_content)
+    
+          # get object
+          o = tr.find('./object').first
+          o_content = o.content.strip
+          o_type = o.attributes.get_attribute("type").value.strip
+          if o_type.downcase == "uri"
+            object = URI.new(o_content)
+          else
+            object = Literal.new(o_content)
+          end
+
+          # triple
+          t = Triple.new(subject, predicate, object)
+          triple_list << t
+    
+        end
+      end 
+    end
+    
+    return return_value, triple_list
+    
+  end
+
+
+  # unsubscribe
+  def unsubscribe(sub_id)
+
+    # building and storing the SSAP UNSUBSCRIBE REQUEST
+    msg = UNSUBSCRIBE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, sub_id ]
+    @last_request = msg
+
+    # connecting to the SIB
+    tcpc = TCPConnection.new(@ip, @port)
+    
+    # sending the request  message
+    tcpc.send_request(msg)
+
+    # closing the socket
+    tcpc.close()
+
+    # waiting for a reply on the socket used for the subscribe request
+    rmsg = @active_subscriptions[sub_id].receive_reply()
+    @active_subscriptions[sub_id].close()
+    @active_subscriptions.delete(sub_id)
+
+    # storing last reply
+    @last_reply = rmsg
+
+    # increment transaction id
+    @transaction_id += 1
+
+    # parsing the message to get the return value
+    content = XML::Parser.string(rmsg).parse
+    pars = content.root.find('./parameter')
+    pars.each do |p|
+      if p.attributes.get_attribute("name").value == "status"
+        return p.content == "m3:Success" ? true : false
+        break
+      end 
+    end
+   
   end
 
 end
