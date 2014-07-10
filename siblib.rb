@@ -402,16 +402,20 @@ class KP
     rescue
       puts "ERROR"
     end
-    puts msg
 
     # waiting for a reply
-    begin
-      rmsg = sib_socket.recv(4096)
-    rescue
-      puts 'error'
+    rmsg = ""
+    while true do
+      begin
+        r = sib_socket.recv(4096)
+        rmsg += r
+        if rmsg.include?("</SSAP_message>")
+          break
+        end
+      rescue
+        puts 'error'
+      end
     end
-    puts rmsg
-    return
 
     # closing the socket
     sib_socket.close()
