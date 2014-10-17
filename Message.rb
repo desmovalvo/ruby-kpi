@@ -140,7 +140,8 @@ class ReplyMessage
   # get_sparql_results
   def get_sparql_results()
 
-    if get_transaction_type == "QUERY"
+    mt = get_transaction_type()
+    if mt == "QUERY" or mt == "SUBSCRIBE"
 
       # declare an empty list
       results = []
@@ -288,19 +289,22 @@ class ReplyMessage
 
   end
 
-  # get_sparql_initial_results
-  def get_sparql_initial_results()
+  # get_sparql_results_from_indication
+  def get_sparql_results_from_indication()
 
     puts "method started"
 
     # declare an empty list
-    results = []
+    added = []
+    removed = []
 
     # Get the triple list
     pars = @content.root.find('./parameter')
     pars.each do |p|
       
-      if p.attributes.get_attribute("name").value == "results"
+      puts p.attributes.get_attribute("name").value
+
+      if p.attributes.get_attribute("name").value == "new_results"
         
         # we're on the sparql node
         p.each_element do |sparql|
@@ -324,7 +328,40 @@ class ReplyMessage
                     variable << v.content
                   end
                   result << variable
-                  results << result
+                  added << result
+                end
+                
+              end
+            end        
+          end
+          break
+        end
+        
+      elsif p.attributes.get_attribute("name").value == "obsolete_results"
+
+        # we're on the sparql node
+        p.each_element do |sparql|
+          
+          sparql.each_element do |hr|
+            
+            # head/results fields
+            hr.each_element do |field|
+              
+              # find the results
+              if field.name == "result"
+                
+                # We found a result
+                result = []
+                
+                field.each_element do |n|
+                  variable = []
+                  variable << n.attributes.first.value
+                  n.each_element do |v|
+                    variable << v.name
+                    variable << v.content
+                  end
+                  result << variable
+                  removed << result
                 end
                 
               end
@@ -336,7 +373,7 @@ class ReplyMessage
       end
     end
 
-    return results
+    return added, removed
 
   end
 

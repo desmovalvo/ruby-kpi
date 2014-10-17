@@ -31,15 +31,22 @@ class Handler
     # print added triples
     puts "Added:"
     added.each do |a|
-      puts a.to_str()
+      if a.class == "Triple"
+        puts a.to_str()
+      else
+        puts a.join(", ")
+      end
     end
     
     # print removed triples
     puts "Removed:"
     removed.each do |r|
-      puts r.to_str()
+      if r.class == "Triple"
+        puts r.to_str()
+      else
+        puts r.join(", ")
+      end
     end
-
     puts "handler finished"
     return
 
@@ -569,7 +576,7 @@ class KP
     subscription_id = r.get_subscription_id()
 
     # Get the initial results
-    initial_results = r.get_sparql_initial_results()
+    initial_results = r.get_sparql_results()
 
     # start the indication receiver
     if myHandlerClass
@@ -723,8 +730,8 @@ class KP
         puts "extracting triples"
         if handler
           puts "SPARQL results extraction yet to implement".red.bold
-          # added, removed = extract_sparql_results_from_indication(content)
-          # handler.handle(added, removed)          
+          added, removed = r.get_sparql_results_from_indication()
+          handler.handle(added, removed)          
         end
         
       # it is an unsubscribe confirm
