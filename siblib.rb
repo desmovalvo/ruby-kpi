@@ -19,7 +19,7 @@ load "Message.rb"
 class Handler
 
   # initializer
-  def init()
+  def initialize()
     # nothing to do
     puts "handler instantiated".yellow
   end
@@ -39,6 +39,9 @@ class Handler
     removed.each do |r|
       puts r.to_str()
     end
+
+    puts "handler finished"
+    return
 
   end
 
@@ -312,18 +315,14 @@ class KP
     @last_request = msg
     @last_reply = rmsg
 
+    # read the reply
+    r = ReplyMessage.new(rmsg)
+
     # increment transaction id
     @transaction_id += 1
 
-    # parsing the message to get the return value
-    content = XML::Parser.string(rmsg).parse
-    pars = content.root.find('./parameter')
-    pars.each do |p|
-      if p.attributes.get_attribute("name").value == "status"
-        return p.content == "m3:Success" ? true : false
-        break
-      end 
-    end
+    # return
+    return r.success?()
     
   end
 
@@ -370,14 +369,8 @@ class KP
     @transaction_id += 1
 
     # parsing the message to get the return value
-    content = XML::Parser.string(rmsg).parse
-    pars = content.root.find('./parameter')
-    pars.each do |p|
-      if p.attributes.get_attribute("name").value == "status"
-        return p.content == "m3:Success" ? true : false
-        break
-      end 
-    end
+    r = ReplyMessage.new(rmsg)
+    return r.success?()
     
   end
 
@@ -411,74 +404,19 @@ class KP
     # waiting a reply
     rmsg = tcpc.receive_reply()
 
+    # storing and reading the reply
+    @last_reply = rmsg
+    r = ReplyMessage.new(rmsg)
+    
     # closing the socket
     tcpc.close()
-
-    # storing last reply
-    @last_reply = rmsg
 
     # increment transaction id
     @transaction_id += 1
 
-    # parsing the message to get the return value
-    content = XML::Parser.string(rmsg).parse
-    pars = content.root.find('./parameter')
-    return_value = nil
-    pars.each do |p|
-      if p.attributes.get_attribute("name").value == "status"
-        return_value = p.content == "m3:Success" ? true : false
-        break
-      end 
-    end
+    # return
+    return r.success?(), r.get_rdf_triples()
 
-    # Get the triple list
-    triple_list = []
-    content = XML::Parser.string(rmsg).parse
-    pars = content.root.find('./parameter')
-    pars.each do |p|
-
-      if p.attributes.get_attribute("name").value == "results"
-
-        # new root
-        nroot = p
-        t = p.find('./triple_list').first.find('./triple')
-        t.each do |tr|
-
-          # get subject
-          s = tr.find('./subject').first
-          s_content = s.content.strip
-          s_type = s.attributes.get_attribute("type").value.strip
-          if s_type.downcase == "uri"
-            subject = URI.new(s_content)
-          else
-            subject = Literal.new(s_content)
-          end
-    
-          # get predicate
-          p = tr.find('./predicate').first
-          p_content = p.content.strip
-          predicate = URI.new(p_content)
-    
-          # get object
-          o = tr.find('./object').first
-          o_content = o.content.strip
-          o_type = o.attributes.get_attribute("type").value.strip
-          if o_type.downcase == "uri"
-            object = URI.new(o_content)
-          else
-            object = Literal.new(o_content)
-          end
-
-          # triple
-          t = Triple.new(subject, predicate, object)
-          triple_list << t
-    
-        end
-      end 
-    end
-    
-    return return_value, triple_list
-    
   end
 
 
@@ -517,61 +455,12 @@ class KP
 
     # increment transaction id
     @transaction_id += 1
-
-    # parsing the message to get the return value
-    content = XML::Parser.string(rmsg).parse
-    pars = content.root.find('./parameter')
-    return_value = nil
-    pars.each do |p|
-      if p.attributes.get_attribute("name").value == "status"
-        return_value = p.content == "m3:Success" ? true : false
-        break
-      end 
-    end
     
-    # find query results
-    results = []
-    
-    # Get the triple list
-    content = XML::Parser.string(rmsg.strip).parse
-    pars = content.root.find('./parameter')
-    pars.each do |p|
-      if p.attributes.get_attribute("name").value == "results"
+    # reading the reply
+    r = ReplyMessage.new(rmsg)
 
-        # we're on the sparql node
-        p.each_element do |sparql|
-    
-          sparql.each_element do |hr|
-          
-            # head/results fields
-            hr.each_element do |field|
-                
-              # find the results
-              if field.name == "result"
-    
-                # We found a result
-                result = []
-                
-                field.each_element do |n|
-                  variable = []
-                  variable << n.attributes.first.value
-                  n.each_element do |v|
-                    variable << v.name
-                    variable << v.content
-                  end
-                  result << variable
-                  results << result
-                end
-
-              end
-            end        
-          end
-          break
-        end
-      end
-    end
-
-    return return_value, results
+    # return
+    return r.success?(), r.get_sparql_results()
     
   end
 
@@ -602,89 +491,23 @@ class KP
     # sendind the request
     tcpc.send_request(msg)
 
-    puts 'request sent'
-    
     # waiting a reply
     rmsg = tcpc.receive_reply()
 
-    # storing last reply
+    # storing and reading the last reply
     @last_reply = rmsg
+    r = ReplyMessage.new(rmsg)
 
     # increment transaction id
     @transaction_id += 1
 
-    # parsing the message to get the return value
-    content = XML::Parser.string(rmsg).parse
-    pars = content.root.find('./parameter')
-    return_value = nil
-    pars.each do |p|
-      if p.attributes.get_attribute("name").value == "status"
-        return_value = p.content == "m3:Success" ? true : false
-        break
-      end 
-    end
-
     # get the subscription id
-    subscription_id = nil
-    pars.each do |p|
-      if p.attributes.get_attribute("name").value == "subscription_id"
-        subscription_id = p.content
-        break
-      end 
-    end
-    puts subscription_id
-
-    # store the subscription id and its socket
-    @active_subscriptions[subscription_id] = {} 
-    @active_subscriptions[subscription_id]["socket"] = tcpc
+    subscription_id = r.get_subscription_id()
 
     # Get the initial results
-    triple_list = []
-    content = XML::Parser.string(rmsg).parse
-    pars = content.root.find('./parameter')
-    pars.each do |p|
+    triple_list = r.get_rdf_triples()
 
-      if p.attributes.get_attribute("name").value == "results"
-
-        # new root
-        nroot = p
-        t = p.find('./triple_list').first.find('./triple')
-        t.each do |tr|
-
-          # get subject
-          s = tr.find('./subject').first
-          s_content = s.content.strip
-          s_type = s.attributes.get_attribute("type").value.strip
-          if s_type.downcase == "uri"
-            subject = URI.new(s_content)
-          else
-            subject = Literal.new(s_content)
-          end
-    
-          # get predicate
-          p = tr.find('./predicate').first
-          p_content = p.content.strip
-          predicate = URI.new(p_content)
-    
-          # get object
-          o = tr.find('./object').first
-          o_content = o.content.strip
-          o_type = o.attributes.get_attribute("type").value.strip
-          if o_type.downcase == "uri"
-            object = URI.new(o_content)
-          else
-            object = Literal.new(o_content)
-          end
-
-          # triple
-          t = Triple.new(subject, predicate, object)
-          triple_list << t        
-    
-        end
-      end 
-    end
-
-    # start the indication receiver
+    # instantiate the handler class
     if myHandlerClass
 
       # TODO check if myHandlerClass is a Handler,
@@ -694,11 +517,17 @@ class KP
     else
       h = nil
     end
+
+    # start the thread
     t = Thread.new{rdf_indication_receiver(tcpc, subscription_id, h)}    
+
+    # store the subscription id, its socket and its thread
+    @active_subscriptions[subscription_id] = {} 
+    @active_subscriptions[subscription_id]["socket"] = tcpc
     @active_subscriptions[subscription_id]["thread"] = t
 
     # return
-    return return_value, subscription_id, triple_list
+    return r.success?(), subscription_id, triple_list
     
   end
 
@@ -729,42 +558,21 @@ class KP
     # waiting a reply
     rmsg = tcpc.receive_reply()
 
-    # storing last reply
+    # storing and reading the last reply
     @last_reply = rmsg
+    r = ReplyMessage.new(rmsg)
 
     # increment transaction id
     @transaction_id += 1
 
-    # parsing the message to get the return value
-    content = XML::Parser.string(rmsg).parse
-    pars = content.root.find('./parameter')
-    return_value = nil
-    pars.each do |p|
-      if p.attributes.get_attribute("name").value == "status"
-        return_value = p.content == "m3:Success" ? true : false
-        break
-      end 
-    end
-
     # get the subscription id
-    subscription_id = nil
-    pars.each do |p|
-      if p.attributes.get_attribute("name").value == "subscription_id"
-        subscription_id = p.content
-        break
-      end 
-    end
-    puts subscription_id
+    subscription_id = r.get_subscription_id()
 
-    # store the subscription id and its socket
-    @active_subscriptions[subscription_id] = {} 
-    @active_subscriptions[subscription_id]["socket"] = tcpc
-
-    # TODO: Get the initial results
-    initial_results = []
+    # Get the initial results
+    initial_results = r.get_sparql_initial_results()
 
     # start the indication receiver
-    if myHandlerClass and myHandlerClass.is_a?(Handler)
+    if myHandlerClass
       # TODO check if myHandlerClass is a Handler,
       # otherwise raise an exception
       h = myHandlerClass.new()
@@ -772,10 +580,14 @@ class KP
       h = nil
     end
     t = Thread.new{sparql_indication_receiver(tcpc, subscription_id, h)}    
+
+    # store the subscription id and its socket
+    @active_subscriptions[subscription_id] = {} 
+    @active_subscriptions[subscription_id]["socket"] = tcpc
     @active_subscriptions[subscription_id]["thread"] = t
 
     # return
-    return return_value, subscription_id, initial_results
+    return r.success?(), subscription_id, initial_results
     
   end
 
@@ -829,63 +641,50 @@ class KP
     while true
     
       # receive
+      puts "waiting..."
       rmsg = tcpc.receive_reply()
+      r = ReplyMessage.new(rmsg)
 
-      puts rmsg.green.bold
-
-      # parse the message
-      content = XML::Parser.string(rmsg).parse
-      
       # is it an indication?
-      if content.find('//message_type').first.content() == "INDICATION"
+      if r.get_message_type() == "INDICATION"
 
         # debug print
         if @debug
           @logger.debug("KP:rdf_indication_receiver -- INDICATION")
         end
         
-        # extract triples from the indication and launch the handler
-        puts "extracting triples"
-        if handler and handler.is_a?(Handler)
-          puts "i'm really extracting triples"
-          added, removed = extract_rdf_triples_from_indication(content)
-          h = handler.new()
-          h.handle(added, removed)          
+        # if an handler is given, extract triples from the indication and launch the handler
+        if handler
+          added, removed = r.get_rdf_triples_from_indication()
+          handler.handle(added, removed)          
         end
         
       # it is an unsubscribe confirm
       else
 
         # close subscription
-        pars = content.root.find('./parameter')
-        pars.each do |p|
-          if p.attributes.get_attribute("name").value == "status"
-            if p.content == "m3:Success"
+        if r.success?()
 
-              # debug print
-              if @debug
-                @logger.debug("KP:rdf_indication_receiver -- UNSUBSCRIBE CONFIRM")
-              end
+          # debug print
+          if @debug
+            @logger.debug("KP:rdf_indication_receiver -- UNSUBSCRIBE CONFIRM")
+          end
 
-              # save the reply
-              @last_reply = rmsg
+          # save the reply
+          @last_reply = rmsg
               
-              # close subscription
-              @active_subscriptions[subscription_id]["socket"].close()
-              t = @active_subscriptions[subscription_id]["thread"]
-              @active_subscriptions.delete(subscription_id)
-              t.exit()    
-
-            end
-          end 
+          # close subscription
+          @active_subscriptions[subscription_id]["socket"].close()
+          t = @active_subscriptions[subscription_id]["thread"]
+          @active_subscriptions.delete(subscription_id)
+          t.exit()    
+          
         end
-
-      end
-      
-    end
+      end 
+    end    
   end
 
-
+  
   ####################################################
   #
   # sparql indication receiver
@@ -903,7 +702,9 @@ class KP
     while true
     
       # receive
+      puts 'waiting...'
       rmsg = tcpc.receive_reply()
+      r = ReplyMessage.new(rmsg)
 
       puts rmsg.green.bold
 
@@ -911,7 +712,7 @@ class KP
       content = XML::Parser.string(rmsg).parse
       
       # is it an indication?
-      if content.find('//message_type').first.content() == "INDICATION"
+      if r.get_message_type() == "INDICATION"
 
         # debug print
         if @debug
@@ -920,150 +721,38 @@ class KP
         
         # extract triples from the indication and launch the handler
         puts "extracting triples"
-        if handler and handler.is_a?(Handler)
-          added, removed = extract_sparql_results_from_indication(content)
-          h = handler.new()
-          h.handle(added, removed)          
+        if handler
+          puts "SPARQL results extraction yet to implement".red.bold
+          # added, removed = extract_sparql_results_from_indication(content)
+          # handler.handle(added, removed)          
         end
         
       # it is an unsubscribe confirm
       else
 
         # close subscription
-        pars = content.root.find('./parameter')
-        pars.each do |p|
-          if p.attributes.get_attribute("name").value == "status"
-            if p.content == "m3:Success"
+        if r.success?()
 
-              # debug print
-              if @debug
-                @logger.debug("KP:sparql_indication_receiver -- UNSUBSCRIBE CONFIRM")
-              end
-
-              # save the reply
-              @last_reply = rmsg
-              
-              # close subscription
-              @active_subscriptions[subscription_id]["socket"].close()
-              t = @active_subscriptions[subscription_id]["thread"]
-              @active_subscriptions.delete(subscription_id)
-              t.exit()    
-
-            end
-          end 
+          # debug print
+          if @debug
+            @logger.debug("KP:sparql_indication_receiver -- UNSUBSCRIBE CONFIRM")
+          end
+          
+          # save the reply
+          @last_reply = rmsg
+          
+          # close subscription
+          @active_subscriptions[subscription_id]["socket"].close()
+          t = @active_subscriptions[subscription_id]["thread"]
+          @active_subscriptions.delete(subscription_id)
+          t.exit()    
+          
         end
-
-      end
-      
+      end 
     end
-  end
-
-
-  ####################################################
-  #
-  # RDF Subscription - Triples extraction
-  #
-  ####################################################
-
-  def extract_rdf_triples_from_indication(content)
-
-    # debug print
-    if @debug
-        @logger.debug("KP:extract_rdf_triples_from_indication")
-    end
-
-    # Get NEW and OLD triple list
-    added = []
-    removed = []
-    pars = content.root.find('./parameter')
-    pars.each do |p|
-
-      # Extract added triples
-      if p.attributes.get_attribute("name").value == "new_results"
-        
-        # new root
-        nroot = p
-        t = p.find('./triple_list').first.find('./triple')
-        t.each do |tr|
-
-          # get subject
-          s = tr.find('./subject').first
-          s_content = s.content.strip
-          s_type = s.attributes.get_attribute("type").value.strip               
-          if s_type.downcase == "uri"
-            subject = URI.new(s_content)
-          else
-            subject = Literal.new(s_content)
-          end
-
-          # get predicate
-          puts 'getting predicate'
-          p = tr.find('./predicate').first
-          p_content = p.content.strip
-          predicate = URI.new(p_content)
-          
-          # get object
-          o = tr.find('./object').first
-          o_content = o.content.strip
-          o_type = o.attributes.get_attribute("type").value.strip
-          if o_type.downcase == "uri"
-            object = URI.new(o_content)
-          else
-            object = Literal.new(o_content)
-          end
-          
-          # build the triple
-          added_triple = Triple.new(subject, predicate, object)
-          added << added_triple
-
-        end
-        
-      # Extract removed triples
-      elsif p.attributes.get_attribute("name").value == "obsolete_results"
-
-        # new root
-        nroot = p
-        t = p.find('./triple_list').first.find('./triple')
-        t.each do |tr|
-          
-          # get subject
-          s = tr.find('./subject').first
-          s_content = s.content.strip
-          s_type = s.attributes.get_attribute("type").value.strip               
-          if s_type.downcase == "uri"
-            subject = URI.new(s_content)
-          else
-            subject = Literal.new(s_content)
-          end
-          
-          # get predicate
-          p = tr.find('./predicate').first
-          p_content = p.content.strip
-          predicate = URI.new(p_content)
-          
-          # get object
-          o = tr.find('./object').first
-          o_content = o.content.strip
-          o_type = o.attributes.get_attribute("type").value.strip
-          if o_type.downcase == "uri"
-            object = URI.new(o_content)
-          else
-            object = Literal.new(o_content)
-          end
-          
-          # build the triple
-          removed_triple = Triple.new(subject, predicate, object)
-          removed << removed_triple
-          
-        end        
-      end     
-    end       
     
-    # return added and removed triples
-    return added, removed
-
   end
-
+  
 
   ####################################################
   #
