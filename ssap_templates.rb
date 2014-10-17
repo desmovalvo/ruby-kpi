@@ -22,7 +22,6 @@ LEAVE_REQUEST_TEMPLATE = %{<SSAP_message>
 
 
 # INSERT
-
 INSERT_REQUEST_TEMPLATE = %{<SSAP_message>
 <node_id>%s</node_id>
 <space_id>%s</space_id>
@@ -34,7 +33,7 @@ INSERT_REQUEST_TEMPLATE = %{<SSAP_message>
 <parameter name = "confirm">TRUE</parameter>
 </SSAP_message>}
 
-# REMOVE TEMPLATE
+# REMOVE
 REMOVE_REQUEST_TEMPLATE = %{<SSAP_message>
 <message_type>REQUEST</message_type>
 <transaction_type>REMOVE</transaction_type>
@@ -46,8 +45,8 @@ REMOVE_REQUEST_TEMPLATE = %{<SSAP_message>
 <triple_list>%s</triple_list></parameter>
 </SSAP_message>}
 
-# QUERY TEMPLATE
-QUERY_REQUEST_TEMPLATE = %{<SSAP_message>
+# RDF QUERY
+RDF_QUERY_REQUEST_TEMPLATE = %{<SSAP_message>
 <node_id>%s</node_id>
 <space_id>%s</space_id>
 <transaction_type>QUERY</transaction_type>
@@ -58,7 +57,7 @@ QUERY_REQUEST_TEMPLATE = %{<SSAP_message>
 <triple_list>%s</triple_list></parameter>
 </SSAP_message>}
 
-# SPARQL QUERY TEMPLATE
+# SPARQL QUERY
 SPARQL_QUERY_REQUEST_TEMPLATE = %{<SSAP_message>
 <node_id>%s</node_id>
 <space_id>%s</space_id>
@@ -69,8 +68,8 @@ SPARQL_QUERY_REQUEST_TEMPLATE = %{<SSAP_message>
 <parameter name = "query">%s</parameter>
 </SSAP_message>}
 
-# RDF SUBSCRIBE TEMPLATE
-SUBSCRIBE_REQUEST_TEMPLATE = %{<SSAP_message>
+# RDF SUBSCRIBE
+RDF_SUBSCRIBE_REQUEST_TEMPLATE = %{<SSAP_message>
 <node_id>%s</node_id>
 <space_id>%s</space_id>
 <transaction_type>SUBSCRIBE</transaction_type>
@@ -81,7 +80,18 @@ SUBSCRIBE_REQUEST_TEMPLATE = %{<SSAP_message>
 <triple_list>%s</triple_list></parameter>
 </SSAP_message>}
 
-# UNSUBSCRIBE TEMPLATE
+# SPARQL SUBSCRIBE
+SPARQL_SUBSCRIBE_REQUEST_TEMPLATE = %{<SSAP_message>
+<node_id>%s</node_id>
+<space_id>%s</space_id>
+<transaction_type>SUBSCRIBE</transaction_type>
+<message_type>REQUEST</message_type>
+<transaction_id>%s</transaction_id>
+<parameter name = "type">sparql</parameter>
+<parameter name = "query">%s</parameter>
+</SSAP_message>}
+
+# UNSUBSCRIBE
 UNSUBSCRIBE_REQUEST_TEMPLATE = %{<SSAP_message>
 <node_id>%s</node_id>
 <space_id>%s</space_id>
@@ -92,7 +102,6 @@ UNSUBSCRIBE_REQUEST_TEMPLATE = %{<SSAP_message>
 </SSAP_message>}
 
 # OTHER TEMPLATES
-
 TRIPLE_TEMPLATE = %{<triple>
 <subject type = "%s">%s</subject>
 <predicate>%s</predicate>
