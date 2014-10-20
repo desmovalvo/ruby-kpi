@@ -45,6 +45,25 @@ REMOVE_REQUEST_TEMPLATE = %{<SSAP_message>
 <triple_list>%s</triple_list></parameter>
 </SSAP_message>}
 
+# UPDATE
+UPDATE_REQUEST_TEMPLATE = %{<SSAP_message>
+<node_id>%s</node_id>
+<space_id>%s</space_id>
+<transaction_type>UPDATE</transaction_type>
+<message_type>REQUEST</message_type>
+<transaction_id>%s</transaction_id>
+
+<parameter name = "insert_graph" encoding = "RDF-M3">
+<triple_list>%s</triple_list>
+</parameter>
+
+<parameter name = "remove_graph" encoding = "RDF-M3">
+<triple_list>%s</triple_list>
+</parameter>
+
+<parameter name = "confirm">TRUE</parameter>
+</SSAP_message>}
+
 # RDF QUERY
 RDF_QUERY_REQUEST_TEMPLATE = %{<SSAP_message>
 <node_id>%s</node_id>

@@ -21,12 +21,10 @@ class Handler
   # initializer
   def initialize()
     # nothing to do
-    puts "handler instantiated".yellow
   end
 
   # handle method
   def handle(added, removed)
-    puts "handle".yellow
 
     # print added triples
     puts "Added:"
@@ -47,7 +45,7 @@ class Handler
         puts r.join(", ")
       end
     end
-    puts "handler finished"
+
     return
 
   end
@@ -62,6 +60,7 @@ end
 ##################################################
 
 class SIBError < StandardError
+
 end
 
 ##################################################
@@ -384,6 +383,58 @@ class KP
 
   ####################################################
   #
+  # UPDATE
+  #
+  ####################################################
+
+  def update(new_triple_list, old_triple_list)
+
+    # debug print
+    if @debug
+        @logger.debug("KP:update")
+    end
+
+    # build the triple strings
+    old_triple_string = ""
+    old_triple_list.each do |triple|
+      old_triple_string += TRIPLE_TEMPLATE % [triple.subject.class, triple.subject.value, triple.predicate.value, triple.object.class, triple.object.value]
+    end
+    new_triple_string = ""
+    new_triple_list.each do |triple|
+      new_triple_string += TRIPLE_TEMPLATE % [triple.subject.class, triple.subject.value, triple.predicate.value, triple.object.class, triple.object.value]
+    end
+
+    # building and storing the SSAP REMOVE REQUEST
+    msg = UPDATE_REQUEST_TEMPLATE % [ @node_id, @ss, @transaction_id, new_triple_string, old_triple_string ]
+    @last_request = msg
+
+    # connecting to the SIB
+    tcpc = TCPConnection.new(@ip, @port)
+    
+    # sendind the request
+    tcpc.send_request(msg)
+
+    # waiting a reply
+    rmsg = tcpc.receive_reply()
+
+    # closing the socket
+    tcpc.close()
+
+    # storing last reply
+    @last_reply = rmsg
+
+    # increment transaction id
+    @transaction_id += 1
+
+    # parsing the message to get the return value
+    r = ReplyMessage.new(rmsg)
+    return r.success?()
+    
+  end
+
+
+  ####################################################
+  #
   # RDF QUERY
   #
   ####################################################
@@ -478,7 +529,7 @@ class KP
   #
   ####################################################
   
-  def rdf_subscribe(triple, myHandlerClass = nil)
+  def rdf_subscribe(triple, myHandlerClass)
 
     # debug print
     if @debug
@@ -515,15 +566,7 @@ class KP
     triple_list = r.get_rdf_triples()
 
     # instantiate the handler class
-    if myHandlerClass
-
-      # TODO check if myHandlerClass is a Handler,
-      # otherwise raise an exception
-      h = myHandlerClass.new()
-
-    else
-      h = nil
-    end
+    h = myHandlerClass.new()
 
     # start the thread
     t = Thread.new{rdf_indication_receiver(tcpc, subscription_id, h)}    
@@ -628,6 +671,9 @@ class KP
     # increment transaction id
     @transaction_id += 1
    
+    # get the thread and return
+    return @active_subscriptions[sub_id]["thread"].value
+
   end
 
 
@@ -648,7 +694,6 @@ class KP
     while true
     
       # receive
-      puts "waiting..."
       rmsg = tcpc.receive_reply()
       r = ReplyMessage.new(rmsg)
 
@@ -659,12 +704,10 @@ class KP
         if @debug
           @logger.debug("KP:rdf_indication_receiver -- INDICATION")
         end
-        
-        # if an handler is given, extract triples from the indication and launch the handler
-        if handler
-          added, removed = r.get_rdf_triples_from_indication()
-          handler.handle(added, removed)          
-        end
+
+        # call the handler
+        added, removed = r.get_rdf_triples_from_indication()
+        handler.handle(added, removed)          
         
       # it is an unsubscribe confirm
       else
@@ -684,7 +727,10 @@ class KP
           @active_subscriptions[subscription_id]["socket"].close()
           t = @active_subscriptions[subscription_id]["thread"]
           @active_subscriptions.delete(subscription_id)
-          t.exit()    
+          
+          # return 
+          r = ReplyMessage.new(rmsg)
+          return r.success?()
           
         end
       end 
@@ -709,11 +755,8 @@ class KP
     while true
     
       # receive
-      puts 'waiting...'
       rmsg = tcpc.receive_reply()
       r = ReplyMessage.new(rmsg)
-
-      puts rmsg.green.bold
 
       # parse the message
       content = XML::Parser.string(rmsg).parse
@@ -727,12 +770,8 @@ class KP
         end
         
         # extract triples from the indication and launch the handler
-        puts "extracting triples"
-        if handler
-          puts "SPARQL results extraction yet to implement".red.bold
-          added, removed = r.get_sparql_results_from_indication()
-          handler.handle(added, removed)          
-        end
+        added, removed = r.get_sparql_results_from_indication()
+        handler.handle(added, removed)          
         
       # it is an unsubscribe confirm
       else
@@ -752,7 +791,10 @@ class KP
           @active_subscriptions[subscription_id]["socket"].close()
           t = @active_subscriptions[subscription_id]["thread"]
           @active_subscriptions.delete(subscription_id)
-          t.exit()    
+
+          # return 
+          r = ReplyMessage.new(rmsg)
+          return r.success?()
           
         end
       end 
@@ -760,71 +802,5 @@ class KP
     
   end
   
-
-  ####################################################
-  #
-  # SPARQL Subscription - Results extraction
-  #
-  ####################################################
-
-  def extract_sparql_results_from_indication(content)
-
-    # debug print
-    if @debug
-        @logger.debug("KP:extract_sparql_results_from_indication")
-    end
-
-    # Get NEW and OLD triple list
-    added = []
-    removed = []
-
-    # Get the result list
-    content = XML::Parser.string(rmsg.strip).parse
-    pars = content.root.find('./parameter')
-    pars.each do |p|
-
-      # Extract NEW results
-      if p.attributes.get_attribute("name").value == "new_results"
-
-        # we're on the sparql node
-        p.each_element do |sparql|
-    
-          sparql.each_element do |hr|
-          
-            # head/results fields
-            hr.each_element do |field|
-                
-              # find the results
-              if field.name == "result"
-    
-                # We found a result
-                result = []
-                
-                field.each_element do |n|
-                  variable = []
-                  variable << n.attributes.first.value
-                  n.each_element do |v|
-                    variable << v.name
-                    variable << v.content
-                  end
-                  result << variable
-                  added << result
-                end
-
-              end
-            end        
-          end
-          break
-        end
-      end
-    end
-
-      ###
-    puts added.size
-
-    # return added and removed triples
-    return added, removed
-
-  end
 
 end
